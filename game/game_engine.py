@@ -22,21 +22,20 @@ class Debris:
         self.angular_velocity = random.uniform(-7.0, 7.0)
 
     def update(self):
-        # Gravity increases downward velocity.
+        # Gravity
         self.velocity_y += self.gravity
 
-        # Move debris.
+        # Movement
         self.x += self.velocity_x
         self.y += self.velocity_y
 
-        # Rotate debris.
+        # Rotation
         self.angle += self.angular_velocity
 
     def is_off_screen(self, screen_height):
         return self.y > screen_height + 100
 
     def render(self, surface):
-        # Create transparent surface for the debris.
         debris_surface = pygame.Surface(
             (
                 max(2, int(self.width)),
@@ -45,14 +44,12 @@ class Debris:
             pygame.SRCALPHA,
         )
 
-        # Draw debris.
         pygame.draw.rect(
             debris_surface,
             self.color,
             debris_surface.get_rect(),
         )
 
-        # Draw border.
         pygame.draw.rect(
             debris_surface,
             (245, 245, 250),
@@ -60,13 +57,11 @@ class Debris:
             width=2,
         )
 
-        # Rotate debris.
         rotated = pygame.transform.rotate(
             debris_surface,
             self.angle,
         )
 
-        # Keep rotation centered.
         draw_x = int(
             self.x
             + self.width / 2
@@ -86,6 +81,7 @@ class Debris:
 
 
 class GameEngine:
+
     def __init__(self, width, height):
         self.width = width
         self.height = height
@@ -93,7 +89,7 @@ class GameEngine:
         self.block_height = 28
         self.base_width = 180
 
-        # Fonts.
+        # Fonts
         self.font_title = pygame.font.SysFont(
             None,
             38,
@@ -118,12 +114,12 @@ class GameEngine:
 
     def get_color(self, index):
         palette = [
-            (230, 75, 75),    # Crimson
-            (240, 140, 45),   # Orange
-            (245, 210, 50),   # Gold
-            (60, 195, 110),   # Green
-            (50, 150, 240),   # Blue
-            (165, 80, 225),   # Purple
+            (230, 75, 75),
+            (240, 140, 45),
+            (245, 210, 50),
+            (60, 195, 110),
+            (50, 150, 240),
+            (165, 80, 225),
         ]
 
         return palette[index % len(palette)]
@@ -134,16 +130,38 @@ class GameEngine:
         self.perfect_streak = 0
         self.game_over = False
 
-        # PERFECT popup.
+        # PERFECT popup
         self.perfect_popup_timer = 0
         self.perfect_popup_duration = 70
 
-        # TASK 3:
-        # Store all falling debris pieces.
+        # TASK 3
+        # Falling debris collection
         self.debris = []
 
-        # Base block.
-        base_x = (self.width - self.base_width) / 2
+        # TASK 4
+        # Fixed star positions for the night sky
+        self.stars = []
+
+        for _ in range(80):
+            self.stars.append(
+                (
+                    random.randint(
+                        0,
+                        self.width - 1,
+                    ),
+                    random.randint(
+                        0,
+                        self.height - 1,
+                    ),
+                    random.randint(1, 3),
+                )
+            )
+
+        # Base block
+        base_x = (
+            self.width - self.base_width
+        ) / 2
+
         base_y = self.height - 60
 
         base_block = Block(
@@ -162,24 +180,24 @@ class GameEngine:
     def spawn_active_block(self):
         top_block = self.stack[-1]
 
-        # Position above current tower.
         next_y = (
             top_block.y
             - self.block_height
             - 4
         )
 
-        # Increase speed as tower grows.
+        # Increase speed as tower grows
         speed = min(
             10.0,
-            4.5 + (len(self.stack) * 0.35),
+            4.5
+            + (len(self.stack) * 0.35),
         )
 
         color = self.get_color(
             len(self.stack)
         )
 
-        # Start from either side.
+        # Spawn from either side
         if random.choice([True, False]):
             start_x = 25
         else:
@@ -198,23 +216,22 @@ class GameEngine:
             speed=speed,
         )
 
+    # =================================================
+    # TASK 3 - CREATE FALLING DEBRIS
+    # =================================================
+
     def create_debris(self, act, top_block):
-        """
-        Create debris from the part of the active block
-        that hangs outside the previous block.
-        """
 
-        # ---------------------------------------------
         # LEFT OVERHANG
-        # ---------------------------------------------
-
         if act.x < top_block.x:
+
             overhang_width = min(
                 act.width,
                 top_block.x - act.x,
             )
 
             if overhang_width > 0:
+
                 debris = Debris(
                     x=act.x,
                     y=act.y,
@@ -226,10 +243,7 @@ class GameEngine:
 
                 self.debris.append(debris)
 
-        # ---------------------------------------------
         # RIGHT OVERHANG
-        # ---------------------------------------------
-
         active_right = (
             act.x + act.width
         )
@@ -240,12 +254,14 @@ class GameEngine:
         )
 
         if active_right > top_right:
+
             overhang_width = min(
                 act.width,
                 active_right - top_right,
             )
 
             if overhang_width > 0:
+
                 debris = Debris(
                     x=top_right,
                     y=act.y,
@@ -257,16 +273,19 @@ class GameEngine:
 
                 self.debris.append(debris)
 
+    # =================================================
+    # DROP BLOCK
+    # =================================================
+
     def drop_block(self):
+
         if self.game_over:
             return
 
         top_block = self.stack[-1]
         act = self.active_block
 
-        # ---------------------------------------------
-        # CALCULATE HORIZONTAL OVERLAP
-        # ---------------------------------------------
+        # Calculate overlap
 
         left = max(
             act.x,
@@ -275,41 +294,46 @@ class GameEngine:
 
         right = min(
             act.x + act.width,
-            top_block.x + top_block.width,
+            top_block.x
+            + top_block.width,
         )
 
         overlap = right - left
 
-        # ---------------------------------------------
+        # =================================================
         # TASK 1
-        #
-        # Positive overlap = successful placement.
-        # No overlap = game over.
-        # ---------------------------------------------
+        # POSITIVE OVERLAP = SUCCESS
+        # =================================================
 
-        is_successful_drop = overlap > 0
+        is_successful_drop = (
+            overlap > 0
+        )
 
         if not is_successful_drop:
+
             self.game_over = True
             return
 
-        # ---------------------------------------------
+        # =================================================
         # TASK 2
         # PERFECT PLACEMENT
-        # ---------------------------------------------
+        # =================================================
 
         alignment_error = abs(
             act.x - top_block.x
         )
 
-        # 10 pixels makes the PERFECT easier
-        # to demonstrate during the lab.
-        is_perfect = alignment_error <= 10
+        # 10 pixels makes PERFECT easier
+        # to demonstrate.
+        is_perfect = (
+            alignment_error <= 10
+        )
 
         if is_perfect:
 
-            # Keep the complete width.
-            # Snap directly into alignment.
+            # Keep complete width
+            # and snap into alignment.
+
             new_block = Block(
                 top_block.x,
                 act.y,
@@ -323,23 +347,23 @@ class GameEngine:
                 new_block
             )
 
-            # Normal height score.
+            # Height
             self.score += 1
 
-            # PERFECT bonus.
+            # PERFECT bonus
             self.bonus_score += 2
 
-            # Increase streak.
+            # Perfect streak
             self.perfect_streak += 1
 
-            # Show PERFECT popup.
+            # Popup
             self.perfect_popup_timer = (
                 self.perfect_popup_duration
             )
 
-            # -----------------------------------------
-            # THREE PERFECTS IN A ROW
-            # -----------------------------------------
+            # =================================================
+            # THREE PERFECTS
+            # =================================================
 
             if self.perfect_streak >= 3:
 
@@ -351,7 +375,6 @@ class GameEngine:
                     + expansion,
                 )
 
-                # Keep block centered.
                 center_x = (
                     new_block.x
                     + new_block.width / 2
@@ -366,26 +389,26 @@ class GameEngine:
                     - expanded_width / 2
                 )
 
-                # Extra combo bonus.
+                # Extra bonus
                 self.bonus_score += 3
 
-                # Reset streak after combo.
+                # Reset streak
                 self.perfect_streak = 0
 
         else:
 
-            # -----------------------------------------
+            # =================================================
             # TASK 3
-            #
-            # Turn the hanging portion into debris.
-            # -----------------------------------------
+            # CREATE DEBRIS FROM OVERHANG
+            # =================================================
 
             self.create_debris(
                 act,
                 top_block,
             )
 
-            # Keep only the overlapping part.
+            # Keep only overlapping portion
+
             trimmed_width = max(
                 10.0,
                 overlap,
@@ -406,12 +429,12 @@ class GameEngine:
 
             self.score += 1
 
-            # Non-perfect placement breaks streak.
+            # Break perfect streak
             self.perfect_streak = 0
 
-        # ---------------------------------------------
-        # CAMERA / TOWER SCROLLING
-        # ---------------------------------------------
+        # =================================================
+        # CAMERA SCROLL
+        # =================================================
 
         if new_block.y < 180:
 
@@ -422,20 +445,24 @@ class GameEngine:
             for block in self.stack:
                 block.y += shift_amount
 
-        # Spawn next block.
+        # Spawn next block
         self.spawn_active_block()
+
+    # =================================================
+    # EVENTS
+    # =================================================
 
     def handle_event(self, event):
 
-        # ---------------------------------------------
-        # GAME OVER CONTROLS
-        # ---------------------------------------------
+        # GAME OVER
 
         if self.game_over:
 
             if (
-                event.type == pygame.KEYDOWN
-                and event.key in (
+                event.type
+                == pygame.KEYDOWN
+                and event.key
+                in (
                     pygame.K_r,
                     pygame.K_SPACE,
                 )
@@ -444,48 +471,52 @@ class GameEngine:
                 == pygame.MOUSEBUTTONDOWN
                 and event.button == 1
             ):
+
                 self.reset()
 
             return
 
-        # ---------------------------------------------
-        # SPACE TO DROP
-        # ---------------------------------------------
-
+        # SPACE
         if (
-            event.type == pygame.KEYDOWN
-            and event.key == pygame.K_SPACE
+            event.type
+            == pygame.KEYDOWN
+            and event.key
+            == pygame.K_SPACE
         ):
+
             self.drop_block()
 
-        # ---------------------------------------------
-        # LEFT CLICK TO DROP
-        # ---------------------------------------------
-
+        # LEFT CLICK
         elif (
             event.type
             == pygame.MOUSEBUTTONDOWN
             and event.button == 1
         ):
+
             self.drop_block()
+
+    # =================================================
+    # UPDATE
+    # =================================================
 
     def update(self):
 
-        # Move active block.
+        # Active block
         if not self.game_over:
+
             self.active_block.update(
                 self.width
             )
 
-        # ---------------------------------------------
-        # TASK 3
-        # UPDATE FALLING DEBRIS
-        # ---------------------------------------------
+        # =================================================
+        # TASK 3 - UPDATE DEBRIS
+        # =================================================
 
         for debris in self.debris:
             debris.update()
 
-        # Remove debris once it is far below screen.
+        # Remove debris after it leaves screen
+
         self.debris = [
             debris
             for debris in self.debris
@@ -494,31 +525,197 @@ class GameEngine:
             )
         ]
 
-        # ---------------------------------------------
-        # PERFECT POPUP TIMER
-        # ---------------------------------------------
+        # PERFECT popup timer
 
         if self.perfect_popup_timer > 0:
+
             self.perfect_popup_timer -= 1
+
+    # =================================================
+    # TASK 4 - ATMOSPHERIC BACKGROUND
+    # =================================================
+
+    def draw_background(self, screen):
+
+        height = self.score
+
+        # -------------------------------------------------
+        # STAGE 1 - TWILIGHT BLUE
+        # Height 0-4
+        # -------------------------------------------------
+
+        if height < 5:
+
+            top_color = (
+                70,
+                120,
+                180,
+            )
+
+            bottom_color = (
+                25,
+                45,
+                80,
+            )
+
+        # -------------------------------------------------
+        # STAGE 2 - DUSK PURPLE
+        # Height 5-9
+        # -------------------------------------------------
+
+        elif height < 10:
+
+            top_color = (
+                105,
+                75,
+                150,
+            )
+
+            bottom_color = (
+                45,
+                30,
+                75,
+            )
+
+        # -------------------------------------------------
+        # STAGE 3 - NIGHT
+        # Height 10-19
+        # -------------------------------------------------
+
+        elif height < 20:
+
+            top_color = (
+                25,
+                35,
+                70,
+            )
+
+            bottom_color = (
+                5,
+                8,
+                20,
+            )
+
+        # -------------------------------------------------
+        # STAGE 4 - STRATOSPHERE
+        # Height 20+
+        # -------------------------------------------------
+
+        else:
+
+            top_color = (
+                12,
+                15,
+                25,
+            )
+
+            bottom_color = (
+                0,
+                0,
+                5,
+            )
+
+        # =================================================
+        # DRAW GRADIENT
+        # =================================================
+
+        for y in range(self.height):
+
+            ratio = (
+                y
+                / max(
+                    1,
+                    self.height - 1,
+                )
+            )
+
+            red = int(
+                top_color[0]
+                + (
+                    bottom_color[0]
+                    - top_color[0]
+                )
+                * ratio
+            )
+
+            green = int(
+                top_color[1]
+                + (
+                    bottom_color[1]
+                    - top_color[1]
+                )
+                * ratio
+            )
+
+            blue = int(
+                top_color[2]
+                + (
+                    bottom_color[2]
+                    - top_color[2]
+                )
+                * ratio
+            )
+
+            pygame.draw.line(
+                screen,
+                (
+                    red,
+                    green,
+                    blue,
+                ),
+                (0, y),
+                (self.width, y),
+            )
+
+        # =================================================
+        # DRAW STARS AT NIGHT
+        # =================================================
+
+        if height >= 10:
+
+            for x, y, size in self.stars:
+
+                brightness = min(
+                    255,
+                    150
+                    + (height - 10) * 8,
+                )
+
+                pygame.draw.circle(
+                    screen,
+                    (
+                        brightness,
+                        brightness,
+                        brightness,
+                    ),
+                    (x, y),
+                    size,
+                )
+
+    # =================================================
+    # RENDER
+    # =================================================
 
     def render(self, screen):
 
-        # ---------------------------------------------
-        # BACKGROUND
-        # ---------------------------------------------
+        # =================================================
+        # TASK 4 BACKGROUND
+        # =================================================
 
-        screen.fill(
-            (24, 27, 36)
+        self.draw_background(
+            screen
         )
 
-        # ---------------------------------------------
+        # =================================================
         # TITLE
-        # ---------------------------------------------
+        # =================================================
 
-        title_surf = self.font_title.render(
-            "Skyscraper Stack",
-            True,
-            (245, 245, 245),
+        title_surf = (
+            self.font_title.render(
+                "Skyscraper Stack",
+                True,
+                (245, 245, 245),
+            )
         )
 
         screen.blit(
@@ -530,14 +727,16 @@ class GameEngine:
             ),
         )
 
-        # ---------------------------------------------
+        # =================================================
         # HEIGHT
-        # ---------------------------------------------
+        # =================================================
 
-        score_surf = self.font_hud.render(
-            f"Height: {self.score}",
-            True,
-            (255, 220, 80),
+        score_surf = (
+            self.font_hud.render(
+                f"Height: {self.score}",
+                True,
+                (255, 220, 80),
+            )
         )
 
         screen.blit(
@@ -549,14 +748,16 @@ class GameEngine:
             ),
         )
 
-        # ---------------------------------------------
+        # =================================================
         # BONUS
-        # ---------------------------------------------
+        # =================================================
 
-        bonus_surf = self.font_hud.render(
-            f"Bonus: +{self.bonus_score}",
-            True,
-            (255, 210, 70),
+        bonus_surf = (
+            self.font_hud.render(
+                f"Bonus: +{self.bonus_score}",
+                True,
+                (255, 210, 70),
+            )
         )
 
         screen.blit(
@@ -564,16 +765,18 @@ class GameEngine:
             (15, 15),
         )
 
-        # ---------------------------------------------
+        # =================================================
         # PERFECT STREAK
-        # ---------------------------------------------
+        # =================================================
 
         if self.perfect_streak > 0:
 
-            streak_surf = self.font_hud.render(
-                f"Perfect Streak: {self.perfect_streak}",
-                True,
-                (255, 215, 80),
+            streak_surf = (
+                self.font_hud.render(
+                    f"Perfect Streak: {self.perfect_streak}",
+                    True,
+                    (255, 215, 80),
+                )
             )
 
             screen.blit(
@@ -581,33 +784,33 @@ class GameEngine:
                 (15, 45),
             )
 
-        # ---------------------------------------------
-        # RENDER TOWER
-        # ---------------------------------------------
+        # =================================================
+        # TOWER
+        # =================================================
 
         for block in self.stack:
             block.render(screen)
 
-        # ---------------------------------------------
-        # TASK 3
-        # RENDER FALLING DEBRIS
-        # ---------------------------------------------
+        # =================================================
+        # TASK 3 - DEBRIS
+        # =================================================
 
         for debris in self.debris:
             debris.render(screen)
 
-        # ---------------------------------------------
+        # =================================================
         # ACTIVE BLOCK
-        # ---------------------------------------------
+        # =================================================
 
         if not self.game_over:
+
             self.active_block.render(
                 screen
             )
 
-        # ---------------------------------------------
+        # =================================================
         # PERFECT POPUP
-        # ---------------------------------------------
+        # =================================================
 
         if self.perfect_popup_timer > 0:
 
@@ -638,14 +841,17 @@ class GameEngine:
                 ),
             )
 
-        # ---------------------------------------------
-        # GAME OVER SCREEN
-        # ---------------------------------------------
+        # =================================================
+        # GAME OVER
+        # =================================================
 
         if self.game_over:
 
             overlay = pygame.Surface(
-                (self.width, self.height),
+                (
+                    self.width,
+                    self.height,
+                ),
                 pygame.SRCALPHA,
             )
 
@@ -658,11 +864,14 @@ class GameEngine:
                 (0, 0),
             )
 
-            # Game over title.
-            over_surf = self.font_big.render(
-                "TOWER COLLAPSED!",
-                True,
-                (240, 75, 75),
+            # Game over title
+
+            over_surf = (
+                self.font_big.render(
+                    "TOWER COLLAPSED!",
+                    True,
+                    (240, 75, 75),
+                )
             )
 
             screen.blit(
@@ -674,11 +883,14 @@ class GameEngine:
                 ),
             )
 
-            # Final height.
-            final_surf = self.font_hud.render(
-                f"Final Height: {self.score}",
-                True,
-                (255, 255, 255),
+            # Final height
+
+            final_surf = (
+                self.font_hud.render(
+                    f"Final Height: {self.score}",
+                    True,
+                    (255, 255, 255),
+                )
             )
 
             screen.blit(
@@ -690,7 +902,8 @@ class GameEngine:
                 ),
             )
 
-            # Bonus score.
+            # Bonus
+
             bonus_final_surf = (
                 self.font_hud.render(
                     f"Perfect Bonus: +{self.bonus_score}",
@@ -708,11 +921,14 @@ class GameEngine:
                 ),
             )
 
-            # Restart message.
-            restart_surf = self.font_hud.render(
-                "Press [Space] or [R] to Play Again",
-                True,
-                (200, 200, 200),
+            # Restart message
+
+            restart_surf = (
+                self.font_hud.render(
+                    "Press [Space] or [R] to Play Again",
+                    True,
+                    (200, 200, 200),
+                )
             )
 
             screen.blit(
